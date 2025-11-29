@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, Minus, Image, BookOpen, Trash2, MapPin, Move, List, X, Camera, Save, Edit3, Maximize2, Search, Leaf, ExternalLink, Settings, Clock, AlertTriangle, ChevronDown, ChevronUp, GripHorizontal, Check, Minimize2, MoreVertical, Upload } from 'lucide-react';
 
-// ========== UTILITY FUNCTIONS ==========
 const resizeImage = (base64Str, maxWidth = 1920) => {
   return new Promise((resolve) => {
     let img = new window.Image();
@@ -10,12 +9,8 @@ const resizeImage = (base64Str, maxWidth = 1920) => {
       let canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-      if (width > maxWidth) {
-        height *= maxWidth / width;
-        width = maxWidth;
-      }
-      canvas.width = width;
-      canvas.height = height;
+      if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+      canvas.width = width; canvas.height = height;
       let ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/jpeg', 0.9));
@@ -25,13 +20,9 @@ const resizeImage = (base64Str, maxWidth = 1920) => {
 
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
-  return date.toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true
-  });
+  return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
-// ========== COMPONENTS ==========
 const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Delete", confirmColor = "red" }) => {
   if (!isOpen) return null;
   const colorClasses = { red: "bg-red-600 hover:bg-red-700", yellow: "bg-yellow-600 hover:bg-yellow-700", green: "bg-emerald-600 hover:bg-emerald-700" };
@@ -208,9 +199,7 @@ const GardenPlanner = () => {
   useEffect(() => { if (currentProject) saveData(); }, [markers, globalJournalEntries, currentProject]);
   
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowProjectMenu(false);
-    };
+    const handleClickOutside = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowProjectMenu(false); };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -380,7 +369,7 @@ const GardenPlanner = () => {
   }, [markers, currentProject, relocatingMarker]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+    <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none" style={{ fontFamily: '"DM Sans", sans-serif', backgroundColor: '#030712' }}>
       
       {/* HEADER (Conditional) */}
       {currentProject ? (
@@ -392,7 +381,6 @@ const GardenPlanner = () => {
           <div className="flex gap-2 relative">
             <button onClick={() => setShowSettings(true)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Settings className="w-5 h-5 text-gray-400" /></button>
             
-            {/* PROJECT MENU */}
             <div className="relative" ref={menuRef}>
               <button onClick={() => setShowProjectMenu(!showProjectMenu)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Image className="w-5 h-5 text-gray-300" /></button>
               {showProjectMenu && (
@@ -411,6 +399,7 @@ const GardenPlanner = () => {
         </div>
       ) : null}
 
+      {/* Force hide file input */}
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
 
       <div className="flex-1 relative flex overflow-hidden">
@@ -457,7 +446,7 @@ const GardenPlanner = () => {
              </div>
           )}
         </div>
-        {/* SIDEBAR AND JOURNAL OMITTED FOR BREVITY, BUT THEY ARE INCLUDED IN FULL SCRIPT BELOW */}
+        {/* Overlays omitted for brevity but logic remains same */}
         {showSidebar && (
           <div className="absolute inset-0 bg-gray-950/98 z-30 p-4 overflow-y-auto backdrop-blur md:relative md:w-80 md:bg-gray-900/50 md:backdrop-blur-none md:border-l md:border-gray-800">
             <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold text-emerald-400" style={{ fontFamily: '"Fraunces", serif' }}>Plants & Markers</h2><button onClick={() => setShowSidebar(false)} className="md:hidden p-2 hover:bg-gray-800 rounded-xl"><X className="w-6 h-6" /></button></div>

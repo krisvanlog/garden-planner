@@ -4,9 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Garden Planner</title>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:wght@600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              gray: {
+                900: '#111827',
+                950: '#030712',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      body, html { 
+        background-color: #030712; 
+        margin: 0; 
+        padding: 0; 
+        height: 100%; 
+        width: 100%;
+        overflow: hidden;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
