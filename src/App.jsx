@@ -190,15 +190,11 @@ const GardenPlanner = () => {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameText, setRenameText] = useState('');
   const [showFullNote, setShowFullNote] = useState(false);
-  
-  // Transform & Drag State
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [relocatingMarker, setRelocatingMarker] = useState(null);
-  
-  // CRITICAL FIX: Track image loading state
   const [imageLoaded, setImageLoaded] = useState(false);
    
   const canvasRef = useRef(null);
@@ -211,7 +207,6 @@ const GardenPlanner = () => {
 
   useEffect(() => { loadData(); loadConfig(); }, []);
   useEffect(() => { if (currentProject) saveData(); }, [markers, globalJournalEntries, currentProject]);
-  
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowProjectMenu(false);
@@ -223,26 +218,12 @@ const GardenPlanner = () => {
   const loadConfig = async () => { try { const response = await fetch('/api/config'); if (response.ok) { const config = await response.json(); setPerenualKey(config.perenualApiKey || ''); setTrefleToken(config.trefleToken || ''); } } catch (error) { console.log('Error loading config'); } };
   const saveConfig = async (pKey, tToken) => { setPerenualKey(pKey); setTrefleToken(tToken); try { await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ perenualApiKey: pKey, trefleToken: tToken }) }); } catch (e) {} };
   const loadData = async () => { try { const response = await fetch('/api/projects'); if (response.ok) { const loadedProjects = await response.json(); setProjects(loadedProjects); if (loadedProjects.length > 0) loadProject(loadedProjects[0]); } } catch (error) {} };
-  
   const saveData = async () => { 
     const updatedProjects = projects.map(p => p.id === currentProject?.id ? { ...currentProject, markers, globalJournalEntries } : p);
     setProjects(updatedProjects);
-    try { 
-      const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProjects) }); 
-      if (res.ok) { const data = await res.json(); if (data.data) setProjects(data.data); }
-    } catch (e) {} 
+    try { const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProjects) }); if (res.ok) { const data = await res.json(); if (data.data) setProjects(data.data); } } catch (e) {} 
   };
-
-  const loadProject = (project) => { 
-    setCurrentProject(project); 
-    setMarkers(project.markers || []); 
-    setGlobalJournalEntries(project.globalJournalEntries || []); 
-    setScale(1); 
-    setPan({ x: 0, y: 0 }); 
-    setRelocatingMarker(null);
-    setImageLoaded(false); // Reset image state
-  };
-  
+  const loadProject = (project) => { setCurrentProject(project); setMarkers(project.markers || []); setGlobalJournalEntries(project.globalJournalEntries || []); setScale(1); setPan({ x: 0, y: 0 }); setRelocatingMarker(null); setImageLoaded(false); };
   const handleImageUpload = (e) => { 
     const file = e.target.files[0]; 
     if (file) { 
@@ -259,26 +240,8 @@ const GardenPlanner = () => {
     } 
     setShowProjectMenu(false);
   };
-
-  const deleteCurrentProject = async () => {
-    if (!currentProject) return;
-    const updatedProjects = projects.filter(p => p.id !== currentProject.id);
-    setProjects(updatedProjects);
-    try { await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProjects) }); } catch (e) {}
-    if (updatedProjects.length > 0) loadProject(updatedProjects[updatedProjects.length - 1]);
-    else setCurrentProject(null);
-    setShowDeleteProjectConfirm(false);
-    setShowProjectMenu(false);
-  };
-
-  const renameProject = () => {
-    if (!renameText.trim()) return;
-    const updated = { ...currentProject, name: renameText };
-    setCurrentProject(updated);
-    setProjects(projects.map(p => p.id === updated.id ? updated : p));
-    setShowRenameDialog(false);
-    setShowProjectMenu(false);
-  };
+  const deleteCurrentProject = async () => { if (!currentProject) return; const updatedProjects = projects.filter(p => p.id !== currentProject.id); setProjects(updatedProjects); try { await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProjects) }); } catch (e) {} if (updatedProjects.length > 0) loadProject(updatedProjects[updatedProjects.length - 1]); else setCurrentProject(null); setShowDeleteProjectConfirm(false); setShowProjectMenu(false); };
+  const renameProject = () => { if (!renameText.trim()) return; const updated = { ...currentProject, name: renameText }; setCurrentProject(updated); setProjects(projects.map(p => p.id === updated.id ? updated : p)); setShowRenameDialog(false); setShowProjectMenu(false); };
 
   // Pointer Logic
   const getPointerPos = (e) => {
@@ -290,72 +253,39 @@ const GardenPlanner = () => {
     const scaleY = canvas.height / rect.height;
     return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY, clientX, clientY };
   };
-
   const handleStart = (e) => {
     if (!currentProject) return;
     const pos = getPointerPos(e);
     if (relocatingMarker) {
-      const dx = relocatingMarker.x - pos.x;
-      const dy = relocatingMarker.y - pos.y;
+      const dx = relocatingMarker.x - pos.x; const dy = relocatingMarker.y - pos.y;
       if (Math.sqrt(dx*dx + dy*dy) > 50) { setIsPanning(true); setPanStart({ x: pos.clientX - pan.x, y: pos.clientY - pan.y }); }
     } else if (tool === 'pan') { setIsPanning(true); setPanStart({ x: pos.clientX - pan.x, y: pos.clientY - pan.y }); }
   };
-
   const handleMove = (e) => {
     if (!currentProject) return;
     const pos = getPointerPos(e);
-    if (relocatingMarker && !isPanning) {
-      e.preventDefault();
-      const updated = { ...relocatingMarker, x: pos.x, y: pos.y };
-      setRelocatingMarker(updated);
-      setMarkers(markers.map(m => m.id === updated.id ? updated : m));
-    } else if (isPanning) {
-      e.preventDefault();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      setPan({ x: clientX - panStart.x, y: clientY - panStart.y });
-    }
+    if (relocatingMarker && !isPanning) { e.preventDefault(); const updated = { ...relocatingMarker, x: pos.x, y: pos.y }; setRelocatingMarker(updated); setMarkers(markers.map(m => m.id === updated.id ? updated : m)); }
+    else if (isPanning) { e.preventDefault(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; setPan({ x: clientX - panStart.x, y: clientY - panStart.y }); }
   };
-
   const handleEnd = () => { setIsPanning(false); };
-
   const handleCanvasClick = (e) => {
-    if (!currentProject) return;
-    if (relocatingMarker) return;
+    if (!currentProject || relocatingMarker) return;
     const pos = getPointerPos(e);
     const hitMarker = markers.find(m => { const dx = m.x - pos.x; const dy = m.y - pos.y; return Math.sqrt(dx*dx + dy*dy) < 30; });
     if (hitMarker && tool !== 'pan') openMarkerDialog(hitMarker);
-    else if (tool === 'marker' && !hitMarker) {
-      const newMarker = { id: Date.now(), x: pos.x, y: pos.y, label: `Plant ${markers.length + 1}`, description: '', photos: [], journalEntries: [], linkedPlant: null, color: '#10b981' };
-      setMarkers([...markers, newMarker]); openMarkerDialog(newMarker);
-    }
+    else if (tool === 'marker' && !hitMarker) { const newMarker = { id: Date.now(), x: pos.x, y: pos.y, label: `Plant ${markers.length + 1}`, description: '', photos: [], journalEntries: [], linkedPlant: null, color: '#10b981' }; setMarkers([...markers, newMarker]); openMarkerDialog(newMarker); }
   };
-
   const handleZoom = (delta) => { setScale(prev => Math.max(0.2, Math.min(5, prev + delta))); };
 
-  // Dialogs & Data
-  const openMarkerDialog = (marker) => {
-    setSelectedItem(marker); setNoteText(marker.label); setNoteDescription(marker.description || ''); setNotePhotos(marker.photos || []); setMarkerJournalEntries(marker.journalEntries || []); setLinkedPlant(marker.linkedPlant || null); setNewJournalText(''); setNewJournalPhotos([]); setShowNoteDialog(true);
-  };
+  // Dialogs
+  const openMarkerDialog = (marker) => { setSelectedItem(marker); setNoteText(marker.label); setNoteDescription(marker.description || ''); setNotePhotos(marker.photos || []); setMarkerJournalEntries(marker.journalEntries || []); setLinkedPlant(marker.linkedPlant || null); setNewJournalText(''); setNewJournalPhotos([]); setShowNoteDialog(true); };
   const startRelocation = () => { if (selectedItem) { setRelocatingMarker(selectedItem); setShowNoteDialog(false); setSelectedItem(null); } };
-  const finishRelocation = (save) => {
-    if (!save && relocatingMarker) {
-      const original = projects.find(p => p.id === currentProject.id)?.markers.find(m => m.id === relocatingMarker.id);
-      if (original) setMarkers(markers.map(m => m.id === relocatingMarker.id ? original : m));
-    }
-    setRelocatingMarker(null);
-  };
+  const finishRelocation = (save) => { if (!save && relocatingMarker) { const original = projects.find(p => p.id === currentProject.id)?.markers.find(m => m.id === relocatingMarker.id); if (original) setMarkers(markers.map(m => m.id === relocatingMarker.id ? original : m)); } setRelocatingMarker(null); };
   const saveMarkerDetails = () => { setMarkers(markers.map(m => m.id === selectedItem.id ? { ...m, label: noteText, description: noteDescription, photos: notePhotos, journalEntries: markerJournalEntries, linkedPlant: linkedPlant } : m)); setShowNoteDialog(false); setSelectedItem(null); };
   const deleteMarker = () => { setMarkers(markers.filter(m => m.id !== selectedItem.id)); setShowNoteDialog(false); setSelectedItem(null); setShowDeleteMarkerConfirm(false); };
   const handleMarkerPhotoUpload = async (e) => { if (e.target.files[0]) { const reader = new FileReader(); reader.onload = async (evt) => { const r = await resizeImage(evt.target.result, 1200); setNotePhotos([...notePhotos, r]); }; reader.readAsDataURL(e.target.files[0]); } };
   const confirmRemovePhoto = (i) => setPhotoToDelete({ type: 'marker', index: i });
-  const executeRemovePhoto = () => { 
-    if (!photoToDelete) return;
-    if (photoToDelete.type === 'marker') { const n = [...notePhotos]; n.splice(photoToDelete.index, 1); setNotePhotos(n); }
-    if (photoToDelete.type === 'journal') { const n = [...newJournalPhotos]; n.splice(photoToDelete.index, 1); setNewJournalPhotos(n); }
-    if (photoToDelete.type === 'globalJournal') { const n = [...newGlobalPhotos]; n.splice(photoToDelete.index, 1); setNewGlobalPhotos(n); }
-    setPhotoToDelete(null);
-  };
+  const executeRemovePhoto = () => { if (!photoToDelete) return; if (photoToDelete.type === 'marker') { const n = [...notePhotos]; n.splice(photoToDelete.index, 1); setNotePhotos(n); } if (photoToDelete.type === 'journal') { const n = [...newJournalPhotos]; n.splice(photoToDelete.index, 1); setNewJournalPhotos(n); } if (photoToDelete.type === 'globalJournal') { const n = [...newGlobalPhotos]; n.splice(photoToDelete.index, 1); setNewGlobalPhotos(n); } setPhotoToDelete(null); };
   const handleJournalPhotoUpload = async (e) => { if (e.target.files[0]) { const reader = new FileReader(); reader.onload = async (evt) => { const r = await resizeImage(evt.target.result, 1200); setNewJournalPhotos([...newJournalPhotos, r]); }; reader.readAsDataURL(e.target.files[0]); } };
   const addMarkerJournalEntry = () => { if (newJournalText.trim() || newJournalPhotos.length > 0) { setMarkerJournalEntries([{ id: Date.now(), timestamp: Date.now(), text: newJournalText, photos: newJournalPhotos }, ...markerJournalEntries]); setNewJournalText(''); setNewJournalPhotos([]); } };
   const deleteMarkerJournalEntry = (id) => setMarkerJournalEntries(markerJournalEntries.filter(e => e.id !== id));
@@ -368,37 +298,28 @@ const GardenPlanner = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const img = imageRef.current;
-    
-    // Check if the image is actually ready before drawing
     if (!img || !img.complete || !imageLoaded) return;
     
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const MARKER_RADIUS = 8;
-    const LABEL_PADDING = 6;
-    
+    const MARKER_RADIUS = 8; const LABEL_PADDING = 6;
     markers.forEach(marker => {
       const isMoving = relocatingMarker && relocatingMarker.id === marker.id;
       ctx.shadowColor = isMoving ? '#fbbf24' : marker.color; ctx.shadowBlur = isMoving ? 20 : 12; ctx.fillStyle = isMoving ? '#fbbf24' : marker.color; 
       ctx.beginPath(); ctx.arc(marker.x, marker.y, isMoving ? 12 : MARKER_RADIUS, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
       ctx.font = 'bold 18px "DM Sans", sans-serif'; 
-      const textMetrics = ctx.measureText(marker.label);
-      const boxWidth = textMetrics.width + (LABEL_PADDING * 2);
-      const boxHeight = 26;
-      let labelX = marker.x + 14; let labelY = marker.y - 13;
-      if (labelX + boxWidth > canvas.width) labelX = marker.x - 14 - boxWidth;
+      const textMetrics = ctx.measureText(marker.label); const boxWidth = textMetrics.width + (LABEL_PADDING * 2); const boxHeight = 26;
+      let labelX = marker.x + 14; let labelY = marker.y - 13; if (labelX + boxWidth > canvas.width) labelX = marker.x - 14 - boxWidth;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.beginPath(); ctx.roundRect(labelX, labelY, boxWidth, boxHeight, 6); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(marker.label, labelX + LABEL_PADDING, labelY + (boxHeight / 2));
     });
-  }, [markers, currentProject, relocatingMarker, imageLoaded]); // Added imageLoaded dependency
+  }, [markers, currentProject, relocatingMarker, imageLoaded]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none" style={{ fontFamily: '"DM Sans", sans-serif', backgroundColor: '#030712' }}>
       
-      {/* HEADER (Conditional) */}
       {currentProject ? (
         <div className="bg-gray-900/95 backdrop-blur border-b border-gray-800 p-3 flex items-center justify-between z-20 shrink-0">
           <div className="flex items-center gap-2">
@@ -407,19 +328,17 @@ const GardenPlanner = () => {
           </div>
           <div className="flex gap-2 relative">
             <button onClick={() => setShowSettings(true)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Settings className="w-5 h-5 text-gray-400" /></button>
-            
             <div className="relative" ref={menuRef}>
               <button onClick={() => setShowProjectMenu(!showProjectMenu)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Image className="w-5 h-5 text-gray-300" /></button>
               {showProjectMenu && (
                   <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
-                      <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Upload className="w-4 h-4" /> Upload New</button>
+                      <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Upload className="w-4 h-4" /> Upload New</button>
                       <div className="h-px bg-gray-700 mx-2"></div>
-                      <button onClick={() => { setRenameText(currentProject.name); setShowRenameDialog(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Edit3 className="w-4 h-4" /> Rename Map</button>
-                      <button onClick={() => { setShowDeleteProjectConfirm(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-red-900/30 text-red-400 text-left transition-colors"><Trash2 className="w-4 h-4" /> Delete Map</button>
+                      <button onClick={(e) => { e.stopPropagation(); setRenameText(currentProject.name); setShowRenameDialog(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Edit3 className="w-4 h-4" /> Rename Map</button>
+                      <button onClick={(e) => { e.stopPropagation(); setShowDeleteProjectConfirm(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-red-900/30 text-red-400 text-left transition-colors"><Trash2 className="w-4 h-4" /> Delete Map</button>
                   </div>
               )}
             </div>
-
             <button onClick={() => { setShowSidebar(!showSidebar); setShowGlobalJournal(false); }} className={`p-2 rounded-xl transition-colors ${showSidebar ? 'bg-emerald-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}><List className="w-5 h-5" /></button>
             <button onClick={() => { setShowGlobalJournal(!showGlobalJournal); setShowSidebar(false); }} className={`p-2 rounded-xl transition-colors ${showGlobalJournal ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}><BookOpen className="w-5 h-5" /></button>
           </div>
@@ -434,38 +353,23 @@ const GardenPlanner = () => {
             <>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="relative transition-transform duration-75 origin-center pointer-events-auto" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`, willChange: 'transform' }}>
-                  <img 
-                    ref={imageRef} 
-                    src={currentProject.image} 
-                    className="block pointer-events-none" 
-                    onLoad={() => { 
-                      if (canvasRef.current && imageRef.current) { 
-                        canvasRef.current.width = imageRef.current.naturalWidth; 
-                        canvasRef.current.height = imageRef.current.naturalHeight; 
-                        canvasRef.current.style.width = imageRef.current.width + 'px'; 
-                        canvasRef.current.style.height = imageRef.current.height + 'px';
-                        setImageLoaded(true); // FIX: Trigger draw
-                      } 
-                    }} 
-                  />
+                  <img ref={imageRef} src={currentProject.image} className="block pointer-events-none" onLoad={() => { if (canvasRef.current && imageRef.current) { canvasRef.current.width = imageRef.current.naturalWidth; canvasRef.current.height = imageRef.current.naturalHeight; canvasRef.current.style.width = imageRef.current.width + 'px'; canvasRef.current.style.height = imageRef.current.height + 'px'; setImageLoaded(true); } }} />
                   <canvas ref={canvasRef} className="absolute top-0 left-0" onClick={handleCanvasClick} onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd} onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd} />
                 </div>
               </div>
-              
               {relocatingMarker ? (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 bg-amber-900/90 backdrop-blur p-3 rounded-2xl shadow-2xl border border-amber-700 z-20 pointer-events-auto items-center">
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex gap-3 bg-amber-900/90 backdrop-blur p-3 rounded-2xl shadow-2xl border border-amber-700 z-20 pointer-events-auto items-center">
                   <div className="text-amber-100 text-sm font-medium px-2">Move {relocatingMarker.label}</div><div className="h-6 w-px bg-amber-700/50 mx-1"></div>
                   <button onClick={() => finishRelocation(false)} className="p-2 hover:bg-amber-800 rounded-xl transition-colors text-amber-200"><X className="w-5 h-5" /></button>
                   <button onClick={() => finishRelocation(true)} className="p-2 bg-amber-600 hover:bg-amber-500 rounded-xl transition-colors text-white"><Check className="w-5 h-5" /></button>
                 </div>
               ) : (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 bg-gray-900/95 backdrop-blur p-2 rounded-2xl shadow-2xl border border-gray-800 z-10 pointer-events-auto">
+                <div className="absolute bottom-12 md:bottom-6 left-1/2 -translate-x-1/2 flex gap-3 bg-gray-900/95 backdrop-blur p-2 rounded-2xl shadow-2xl border border-gray-800 z-10 pointer-events-auto">
                   <button onClick={() => setTool('pan')} className={`p-3.5 rounded-xl transition-all ${tool === 'pan' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}><Move className="w-6 h-6" /></button>
                   <button onClick={() => setTool('marker')} className={`p-3.5 rounded-xl transition-all ${tool === 'marker' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}><MapPin className="w-6 h-6" /></button>
                 </div>
               )}
-
-              <div className="absolute bottom-24 right-4 flex flex-col gap-2 z-10 pointer-events-auto">
+              <div className="absolute bottom-32 md:bottom-24 right-4 flex flex-col gap-2 z-10 pointer-events-auto">
                 <button onClick={() => handleZoom(0.5)} className="p-3 bg-gray-900/95 backdrop-blur rounded-xl shadow-lg border border-gray-800 text-white hover:bg-gray-800 transition-colors"><Plus className="w-5 h-5" /></button>
                 <button onClick={() => handleZoom(-0.5)} className="p-3 bg-gray-900/95 backdrop-blur rounded-xl shadow-lg border border-gray-800 text-white hover:bg-gray-800 transition-colors"><Minus className="w-5 h-5" /></button>
               </div>
@@ -477,11 +381,7 @@ const GardenPlanner = () => {
                 <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: '"Fraunces", serif' }}>Welcome to Garden Planner</h2>
                 <p className="text-gray-500 mb-6 max-w-xs">Upload a garden layout or floorplan image to start mapping your plants</p>
                 <button onClick={() => fileInputRef.current?.click()} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold transition-colors flex items-center gap-2"><Image className="w-5 h-5" /> Upload Image</button>
-                
-                {/* Settings button on Welcome Screen */}
-                <button onClick={() => setShowSettings(true)} className="mt-4 p-2 text-gray-500 hover:text-gray-400 flex items-center gap-2 text-xs">
-                  <Settings className="w-4 h-4" /> Settings
-                </button>
+                <button onClick={() => setShowSettings(true)} className="mt-4 p-2 text-gray-500 hover:text-gray-400 flex items-center gap-2 text-xs"><Settings className="w-4 h-4" /> Settings</button>
              </div>
           )}
         </div>
@@ -548,7 +448,6 @@ const GardenPlanner = () => {
                   </div>
                 )}
               </div>
-              
               <div>
                 <div className="flex justify-between items-end mb-2">
                   <label className="text-xs text-gray-400 uppercase font-bold tracking-wider">Notes</label>
@@ -556,7 +455,6 @@ const GardenPlanner = () => {
                 </div>
                 <textarea value={noteDescription} onChange={(e) => setNoteDescription(e.target.value)} className="w-full p-3 bg-gray-800 rounded-xl text-white border border-gray-700 focus:border-emerald-500 focus:outline-none h-20 resize-none" placeholder="Planting date, variety, care notes..." />
               </div>
-
               <div>
                 <label className="text-xs text-gray-400 uppercase font-bold tracking-wider block mb-2">Photos</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -609,6 +507,20 @@ const GardenPlanner = () => {
            <div className="flex-1 p-4">
               <textarea value={noteDescription} onChange={(e) => setNoteDescription(e.target.value)} className="w-full h-full bg-transparent text-gray-300 text-lg leading-relaxed resize-none focus:outline-none" placeholder="Start typing detailed notes..." autoFocus />
            </div>
+        </div>
+      )}
+
+      {/* RENAME DIALOG */}
+      {showRenameDialog && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90] backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-sm border border-gray-700 shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-4">Rename Map</h3>
+            <input type="text" value={renameText} onChange={(e) => setRenameText(e.target.value)} className="w-full p-3 bg-gray-900 rounded-xl border border-gray-700 text-white focus:border-blue-500 outline-none mb-6" autoFocus />
+            <div className="flex gap-3">
+              <button onClick={() => setShowRenameDialog(false)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold transition-colors">Cancel</button>
+              <button onClick={renameProject} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-colors">Save</button>
+            </div>
+          </div>
         </div>
       )}
 
