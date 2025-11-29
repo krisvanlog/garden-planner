@@ -18,6 +18,6 @@ A mobile-friendly, drag-and-drop garden planning application designed for self-h
 
 ### Installation
 
-1.  `git clone https://github.com/YOUR_USERNAME/garden-planner.git`
+1.  `git clone https://github.com/krisvanlog/garden-planner.git`
 2.  `cd garden-planner`
 3.  `docker compose up -d --build`
