@@ -1,0 +1,9 @@
+services:
+  garden-planner:
+    build: .
+    container_name: garden-planner
+    ports:
+      - "8090:80"
+    volumes:
+      - ./garden_data:/app/data
+    restart: unless-stopped
