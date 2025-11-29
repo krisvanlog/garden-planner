@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, Minus, Image, BookOpen, Trash2, MapPin, Move, List, X, Camera, Save, Edit3, Maximize2, Search, Leaf, ExternalLink, Settings, Clock, AlertTriangle, ChevronDown, ChevronUp, GripHorizontal, Check, Minimize2, MoreVertical, Upload } from 'lucide-react';
 
+// ========== UTILITY FUNCTIONS ==========
 const resizeImage = (base64Str, maxWidth = 1920) => {
   return new Promise((resolve) => {
     let img = new window.Image();
@@ -9,8 +10,12 @@ const resizeImage = (base64Str, maxWidth = 1920) => {
       let canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-      if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
-      canvas.width = width; canvas.height = height;
+      if (width > maxWidth) {
+        height *= maxWidth / width;
+        width = maxWidth;
+      }
+      canvas.width = width;
+      canvas.height = height;
       let ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL('image/jpeg', 0.9));
@@ -20,9 +25,13 @@ const resizeImage = (base64Str, maxWidth = 1920) => {
 
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
-  return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  return date.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true
+  });
 };
 
+// ========== COMPONENTS ==========
 const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "Delete", confirmColor = "red" }) => {
   if (!isOpen) return null;
   const colorClasses = { red: "bg-red-600 hover:bg-red-700", yellow: "bg-yellow-600 hover:bg-yellow-700", green: "bg-emerald-600 hover:bg-emerald-700" };
@@ -181,11 +190,16 @@ const GardenPlanner = () => {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameText, setRenameText] = useState('');
   const [showFullNote, setShowFullNote] = useState(false);
+  
+  // Transform & Drag State
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [relocatingMarker, setRelocatingMarker] = useState(null);
+  
+  // CRITICAL FIX: Track image loading state
+  const [imageLoaded, setImageLoaded] = useState(false);
    
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
@@ -199,7 +213,9 @@ const GardenPlanner = () => {
   useEffect(() => { if (currentProject) saveData(); }, [markers, globalJournalEntries, currentProject]);
   
   useEffect(() => {
-    const handleClickOutside = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setShowProjectMenu(false); };
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowProjectMenu(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -217,7 +233,15 @@ const GardenPlanner = () => {
     } catch (e) {} 
   };
 
-  const loadProject = (project) => { setCurrentProject(project); setMarkers(project.markers || []); setGlobalJournalEntries(project.globalJournalEntries || []); setScale(1); setPan({ x: 0, y: 0 }); setRelocatingMarker(null); };
+  const loadProject = (project) => { 
+    setCurrentProject(project); 
+    setMarkers(project.markers || []); 
+    setGlobalJournalEntries(project.globalJournalEntries || []); 
+    setScale(1); 
+    setPan({ x: 0, y: 0 }); 
+    setRelocatingMarker(null);
+    setImageLoaded(false); // Reset image state
+  };
   
   const handleImageUpload = (e) => { 
     const file = e.target.files[0]; 
@@ -256,6 +280,7 @@ const GardenPlanner = () => {
     setShowProjectMenu(false);
   };
 
+  // Pointer Logic
   const getPointerPos = (e) => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -343,7 +368,9 @@ const GardenPlanner = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const img = imageRef.current;
-    if (!img || !img.complete) return;
+    
+    // Check if the image is actually ready before drawing
+    if (!img || !img.complete || !imageLoaded) return;
     
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
@@ -366,7 +393,7 @@ const GardenPlanner = () => {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.beginPath(); ctx.roundRect(labelX, labelY, boxWidth, boxHeight, 6); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(marker.label, labelX + LABEL_PADDING, labelY + (boxHeight / 2));
     });
-  }, [markers, currentProject, relocatingMarker]);
+  }, [markers, currentProject, relocatingMarker, imageLoaded]); // Added imageLoaded dependency
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none" style={{ fontFamily: '"DM Sans", sans-serif', backgroundColor: '#030712' }}>
@@ -399,7 +426,6 @@ const GardenPlanner = () => {
         </div>
       ) : null}
 
-      {/* Force hide file input */}
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
 
       <div className="flex-1 relative flex overflow-hidden">
@@ -408,7 +434,20 @@ const GardenPlanner = () => {
             <>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="relative transition-transform duration-75 origin-center pointer-events-auto" style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`, willChange: 'transform' }}>
-                  <img ref={imageRef} src={currentProject.image} className="block pointer-events-none" onLoad={() => { if (canvasRef.current && imageRef.current) { canvasRef.current.width = imageRef.current.naturalWidth; canvasRef.current.height = imageRef.current.naturalHeight; canvasRef.current.style.width = imageRef.current.width + 'px'; canvasRef.current.style.height = imageRef.current.height + 'px'; } }} />
+                  <img 
+                    ref={imageRef} 
+                    src={currentProject.image} 
+                    className="block pointer-events-none" 
+                    onLoad={() => { 
+                      if (canvasRef.current && imageRef.current) { 
+                        canvasRef.current.width = imageRef.current.naturalWidth; 
+                        canvasRef.current.height = imageRef.current.naturalHeight; 
+                        canvasRef.current.style.width = imageRef.current.width + 'px'; 
+                        canvasRef.current.style.height = imageRef.current.height + 'px';
+                        setImageLoaded(true); // FIX: Trigger draw
+                      } 
+                    }} 
+                  />
                   <canvas ref={canvasRef} className="absolute top-0 left-0" onClick={handleCanvasClick} onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd} onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd} />
                 </div>
               </div>
@@ -446,7 +485,7 @@ const GardenPlanner = () => {
              </div>
           )}
         </div>
-        {/* Overlays omitted for brevity but logic remains same */}
+        {/* SIDEBAR AND JOURNAL OMITTED FOR BREVITY, BUT THEY ARE INCLUDED IN FULL SCRIPT BELOW */}
         {showSidebar && (
           <div className="absolute inset-0 bg-gray-950/98 z-30 p-4 overflow-y-auto backdrop-blur md:relative md:w-80 md:bg-gray-900/50 md:backdrop-blur-none md:border-l md:border-gray-800">
             <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold text-emerald-400" style={{ fontFamily: '"Fraunces", serif' }}>Plants & Markers</h2><button onClick={() => setShowSidebar(false)} className="md:hidden p-2 hover:bg-gray-800 rounded-xl"><X className="w-6 h-6" /></button></div>
@@ -570,20 +609,6 @@ const GardenPlanner = () => {
            <div className="flex-1 p-4">
               <textarea value={noteDescription} onChange={(e) => setNoteDescription(e.target.value)} className="w-full h-full bg-transparent text-gray-300 text-lg leading-relaxed resize-none focus:outline-none" placeholder="Start typing detailed notes..." autoFocus />
            </div>
-        </div>
-      )}
-
-      {/* RENAME DIALOG */}
-      {showRenameDialog && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[90] backdrop-blur-sm">
-          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-sm border border-gray-700 shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-4">Rename Map</h3>
-            <input type="text" value={renameText} onChange={(e) => setRenameText(e.target.value)} className="w-full p-3 bg-gray-900 rounded-xl border border-gray-700 text-white focus:border-blue-500 outline-none mb-6" autoFocus />
-            <div className="flex gap-3">
-              <button onClick={() => setShowRenameDialog(false)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold transition-colors">Cancel</button>
-              <button onClick={renameProject} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold transition-colors">Save</button>
-            </div>
-          </div>
         </div>
       )}
 
