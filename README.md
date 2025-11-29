@@ -1,4 +1,3 @@
-cat <<'EOF' > README.md
 # 🌿 Self-Hosted Garden Planner
 
 A mobile-friendly, drag-and-drop garden planning application designed for self-hosting. 
