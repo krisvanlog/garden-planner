@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, Minus, Image, BookOpen, Trash2, MapPin, Move, List, X, Camera, Save, Edit3, Maximize2, Search, Leaf, ExternalLink, Settings, Clock, AlertTriangle, ChevronDown, ChevronUp, GripHorizontal, Check, Minimize2, MoreVertical, Upload, FileText } from 'lucide-react';
+import { Plus, Minus, Image, BookOpen, Trash2, MapPin, Move, List, X, Camera, Save, Edit3, Maximize2, Search, Leaf, ExternalLink, Settings, Clock, AlertTriangle, ChevronDown, ChevronUp, GripHorizontal, Check, Minimize2, MoreVertical, Upload } from 'lucide-react';
 
 // ========== UTILITY FUNCTIONS ==========
 const resizeImage = (base64Str, maxWidth = 1920) => {
@@ -186,12 +186,9 @@ const GardenPlanner = () => {
   const [globalJournalEntries, setGlobalJournalEntries] = useState([]);
   const [newGlobalEntry, setNewGlobalEntry] = useState('');
   const [newGlobalPhotos, setNewGlobalPhotos] = useState([]);
-  
-  // New States for Header Menu & Rename
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameText, setRenameText] = useState('');
-
   const [showFullNote, setShowFullNote] = useState(false);
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -210,7 +207,6 @@ const GardenPlanner = () => {
   useEffect(() => { loadData(); loadConfig(); }, []);
   useEffect(() => { if (currentProject) saveData(); }, [markers, globalJournalEntries, currentProject]);
   
-  // Close menu on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowProjectMenu(false);
@@ -244,7 +240,6 @@ const GardenPlanner = () => {
             const updatedProjects = [...projects, newProject]; 
             setProjects(updatedProjects); 
             loadProject(newProject); 
-            // Trigger save
             try { await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProjects) }); } catch (e) {}
         }; 
         reader.readAsDataURL(file); 
@@ -272,7 +267,6 @@ const GardenPlanner = () => {
     setShowProjectMenu(false);
   };
 
-  // Pointer Logic
   const getPointerPos = (e) => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -325,11 +319,10 @@ const GardenPlanner = () => {
 
   const handleZoom = (delta) => { setScale(prev => Math.max(0.2, Math.min(5, prev + delta))); };
 
-  // Dialogs
+  // Dialogs & Data
   const openMarkerDialog = (marker) => {
     setSelectedItem(marker); setNoteText(marker.label); setNoteDescription(marker.description || ''); setNotePhotos(marker.photos || []); setMarkerJournalEntries(marker.journalEntries || []); setLinkedPlant(marker.linkedPlant || null); setNewJournalText(''); setNewJournalPhotos([]); setShowNoteDialog(true);
   };
-
   const startRelocation = () => { if (selectedItem) { setRelocatingMarker(selectedItem); setShowNoteDialog(false); setSelectedItem(null); } };
   const finishRelocation = (save) => {
     if (!save && relocatingMarker) {
@@ -338,14 +331,8 @@ const GardenPlanner = () => {
     }
     setRelocatingMarker(null);
   };
-
-  const saveMarkerDetails = () => {
-    setMarkers(markers.map(m => m.id === selectedItem.id ? { ...m, label: noteText, description: noteDescription, photos: notePhotos, journalEntries: markerJournalEntries, linkedPlant: linkedPlant } : m)); setShowNoteDialog(false); setSelectedItem(null);
-  };
-
+  const saveMarkerDetails = () => { setMarkers(markers.map(m => m.id === selectedItem.id ? { ...m, label: noteText, description: noteDescription, photos: notePhotos, journalEntries: markerJournalEntries, linkedPlant: linkedPlant } : m)); setShowNoteDialog(false); setSelectedItem(null); };
   const deleteMarker = () => { setMarkers(markers.filter(m => m.id !== selectedItem.id)); setShowNoteDialog(false); setSelectedItem(null); setShowDeleteMarkerConfirm(false); };
-
-  // Assets
   const handleMarkerPhotoUpload = async (e) => { if (e.target.files[0]) { const reader = new FileReader(); reader.onload = async (evt) => { const r = await resizeImage(evt.target.result, 1200); setNotePhotos([...notePhotos, r]); }; reader.readAsDataURL(e.target.files[0]); } };
   const confirmRemovePhoto = (i) => setPhotoToDelete({ type: 'marker', index: i });
   const executeRemovePhoto = () => { 
@@ -378,17 +365,14 @@ const GardenPlanner = () => {
     
     markers.forEach(marker => {
       const isMoving = relocatingMarker && relocatingMarker.id === marker.id;
-      ctx.shadowColor = isMoving ? '#fbbf24' : marker.color; 
-      ctx.shadowBlur = isMoving ? 20 : 12; 
-      ctx.fillStyle = isMoving ? '#fbbf24' : marker.color; 
+      ctx.shadowColor = isMoving ? '#fbbf24' : marker.color; ctx.shadowBlur = isMoving ? 20 : 12; ctx.fillStyle = isMoving ? '#fbbf24' : marker.color; 
       ctx.beginPath(); ctx.arc(marker.x, marker.y, isMoving ? 12 : MARKER_RADIUS, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
       ctx.font = 'bold 18px "DM Sans", sans-serif'; 
       const textMetrics = ctx.measureText(marker.label);
       const boxWidth = textMetrics.width + (LABEL_PADDING * 2);
       const boxHeight = 26;
-      let labelX = marker.x + 14;
-      let labelY = marker.y - 13;
+      let labelX = marker.x + 14; let labelY = marker.y - 13;
       if (labelX + boxWidth > canvas.width) labelX = marker.x - 14 - boxWidth;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.beginPath(); ctx.roundRect(labelX, labelY, boxWidth, boxHeight, 6); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(marker.label, labelX + LABEL_PADDING, labelY + (boxHeight / 2));
@@ -397,37 +381,37 @@ const GardenPlanner = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none" style={{ fontFamily: '"DM Sans", sans-serif' }}>
-      <div className="bg-gray-900/95 backdrop-blur border-b border-gray-800 p-3 flex items-center justify-between z-20 shrink-0">
-        <div className="flex items-center gap-2"><Leaf className="w-6 h-6 text-emerald-400" /><h1 className="text-lg font-bold text-emerald-400 truncate max-w-[140px]" style={{ fontFamily: '"Fraunces", serif' }}>{currentProject ? currentProject.name : 'Garden Planner'}</h1></div>
-        <div className="flex gap-2 relative">
-          <button onClick={() => setShowSettings(true)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Settings className="w-5 h-5 text-gray-400" /></button>
-          
-          {/* Project Menu */}
-          <div className="relative" ref={menuRef}>
-            <button onClick={() => setShowProjectMenu(!showProjectMenu)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Image className="w-5 h-5 text-gray-300" /></button>
-            {showProjectMenu && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
-                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Upload className="w-4 h-4" /> Upload New</button>
-                    {currentProject && (
-                        <>
-                            <div className="h-px bg-gray-700 mx-2"></div>
-                            <button onClick={() => { setRenameText(currentProject.name); setShowRenameDialog(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Edit3 className="w-4 h-4" /> Rename Map</button>
-                            <button onClick={() => { setShowDeleteProjectConfirm(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-red-900/30 text-red-400 text-left transition-colors"><Trash2 className="w-4 h-4" /> Delete Map</button>
-                        </>
-                    )}
-                </div>
-            )}
+      
+      {/* HEADER (Conditional) */}
+      {currentProject ? (
+        <div className="bg-gray-900/95 backdrop-blur border-b border-gray-800 p-3 flex items-center justify-between z-20 shrink-0">
+          <div className="flex items-center gap-2">
+            <Leaf className="w-6 h-6 text-emerald-400" />
+            <h1 className="text-lg font-bold text-emerald-400 truncate max-w-[140px]" style={{ fontFamily: '"Fraunces", serif' }}>{currentProject.name}</h1>
           </div>
+          <div className="flex gap-2 relative">
+            <button onClick={() => setShowSettings(true)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Settings className="w-5 h-5 text-gray-400" /></button>
+            
+            {/* PROJECT MENU */}
+            <div className="relative" ref={menuRef}>
+              <button onClick={() => setShowProjectMenu(!showProjectMenu)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"><Image className="w-5 h-5 text-gray-300" /></button>
+              {showProjectMenu && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
+                      <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Upload className="w-4 h-4" /> Upload New</button>
+                      <div className="h-px bg-gray-700 mx-2"></div>
+                      <button onClick={() => { setRenameText(currentProject.name); setShowRenameDialog(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-gray-700 text-left transition-colors"><Edit3 className="w-4 h-4" /> Rename Map</button>
+                      <button onClick={() => { setShowDeleteProjectConfirm(true); setShowProjectMenu(false); }} className="flex items-center gap-3 p-3 hover:bg-red-900/30 text-red-400 text-left transition-colors"><Trash2 className="w-4 h-4" /> Delete Map</button>
+                  </div>
+              )}
+            </div>
 
-          {currentProject && (
-            <>
-              <button onClick={() => { setShowSidebar(!showSidebar); setShowGlobalJournal(false); }} className={`p-2 rounded-xl transition-colors ${showSidebar ? 'bg-emerald-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}><List className="w-5 h-5" /></button>
-              <button onClick={() => { setShowGlobalJournal(!showGlobalJournal); setShowSidebar(false); }} className={`p-2 rounded-xl transition-colors ${showGlobalJournal ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}><BookOpen className="w-5 h-5" /></button>
-            </>
-          )}
+            <button onClick={() => { setShowSidebar(!showSidebar); setShowGlobalJournal(false); }} className={`p-2 rounded-xl transition-colors ${showSidebar ? 'bg-emerald-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}><List className="w-5 h-5" /></button>
+            <button onClick={() => { setShowGlobalJournal(!showGlobalJournal); setShowSidebar(false); }} className={`p-2 rounded-xl transition-colors ${showGlobalJournal ? 'bg-blue-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}><BookOpen className="w-5 h-5" /></button>
+          </div>
         </div>
-      </div>
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+      ) : null}
+
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
 
       <div className="flex-1 relative flex overflow-hidden">
         <div className="flex-1 relative bg-gray-950 overflow-hidden touch-none">
@@ -439,6 +423,7 @@ const GardenPlanner = () => {
                   <canvas ref={canvasRef} className="absolute top-0 left-0" onClick={handleCanvasClick} onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd} onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd} />
                 </div>
               </div>
+              
               {relocatingMarker ? (
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 bg-amber-900/90 backdrop-blur p-3 rounded-2xl shadow-2xl border border-amber-700 z-20 pointer-events-auto items-center">
                   <div className="text-amber-100 text-sm font-medium px-2">Move {relocatingMarker.label}</div><div className="h-6 w-px bg-amber-700/50 mx-1"></div>
@@ -451,6 +436,7 @@ const GardenPlanner = () => {
                   <button onClick={() => setTool('marker')} className={`p-3.5 rounded-xl transition-all ${tool === 'marker' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}><MapPin className="w-6 h-6" /></button>
                 </div>
               )}
+
               <div className="absolute bottom-24 right-4 flex flex-col gap-2 z-10 pointer-events-auto">
                 <button onClick={() => handleZoom(0.5)} className="p-3 bg-gray-900/95 backdrop-blur rounded-xl shadow-lg border border-gray-800 text-white hover:bg-gray-800 transition-colors"><Plus className="w-5 h-5" /></button>
                 <button onClick={() => handleZoom(-0.5)} className="p-3 bg-gray-900/95 backdrop-blur rounded-xl shadow-lg border border-gray-800 text-white hover:bg-gray-800 transition-colors"><Minus className="w-5 h-5" /></button>
@@ -463,10 +449,15 @@ const GardenPlanner = () => {
                 <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: '"Fraunces", serif' }}>Welcome to Garden Planner</h2>
                 <p className="text-gray-500 mb-6 max-w-xs">Upload a garden layout or floorplan image to start mapping your plants</p>
                 <button onClick={() => fileInputRef.current?.click()} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold transition-colors flex items-center gap-2"><Image className="w-5 h-5" /> Upload Image</button>
+                
+                {/* Settings button on Welcome Screen */}
+                <button onClick={() => setShowSettings(true)} className="mt-4 p-2 text-gray-500 hover:text-gray-400 flex items-center gap-2 text-xs">
+                  <Settings className="w-4 h-4" /> Settings
+                </button>
              </div>
           )}
         </div>
-        {/* SIDEBAR AND JOURNAL COMPONENTS (Same as before) */}
+        {/* SIDEBAR AND JOURNAL OMITTED FOR BREVITY, BUT THEY ARE INCLUDED IN FULL SCRIPT BELOW */}
         {showSidebar && (
           <div className="absolute inset-0 bg-gray-950/98 z-30 p-4 overflow-y-auto backdrop-blur md:relative md:w-80 md:bg-gray-900/50 md:backdrop-blur-none md:border-l md:border-gray-800">
             <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-bold text-emerald-400" style={{ fontFamily: '"Fraunces", serif' }}>Plants & Markers</h2><button onClick={() => setShowSidebar(false)} className="md:hidden p-2 hover:bg-gray-800 rounded-xl"><X className="w-6 h-6" /></button></div>
